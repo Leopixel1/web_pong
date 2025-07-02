@@ -15,7 +15,7 @@ class Pong {
         this.ballX = this.canvas.width / 2;
         this.ballY = this.canvas.height / 2;
         
-        // Speeds
+        // Speeds(fix)
         this.paddleSpeed = 3; // vorher 5
         this.ballSpeedX = 3;  // wird in resetBall überschrieben
         this.ballSpeedY = 3;  // wird in resetBall überschrieben
