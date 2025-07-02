@@ -77,14 +77,15 @@ class Pong {
             this.playerY += this.paddleSpeed;
         }
 
-        // Computer paddle (simple AI)
+        // Computer paddle (verbesserte KI mit Fehlerquote)
         const computerCenter = this.computerY + this.paddleHeight / 2;
         const ballCenter = this.ballY;
-        
+        // Fehlerquote: 10% Chance, dass die KI nichts macht
+        if (Math.random() < 0.1) return;
         if (computerCenter < ballCenter - 35) {
-            this.computerY += this.paddleSpeed * 0.6;
+            this.computerY += this.paddleSpeed * 0.7;
         } else if (computerCenter > ballCenter + 35) {
-            this.computerY -= this.paddleSpeed * 0.6;
+            this.computerY -= this.paddleSpeed * 0.7;
         }
     }
 
@@ -129,8 +130,12 @@ class Pong {
     resetBall() {
         this.ballX = this.canvas.width / 2;
         this.ballY = this.canvas.height / 2;
-        this.ballSpeedX = 5 * (Math.random() > 0.5 ? 1 : -1);
-        this.ballSpeedY = 5 * (Math.random() > 0.5 ? 1 : -1);
+        // Zufälliger Winkel zwischen -45° und 45° oder 135° und 225°
+        let angle = (Math.random() * Math.PI / 2) - Math.PI / 4;
+        if (Math.random() > 0.5) angle += Math.PI; // nach links oder rechts
+        const speed = 6;
+        this.ballSpeedX = Math.cos(angle) * speed;
+        this.ballSpeedY = Math.sin(angle) * speed;
     }
 
     draw() {
