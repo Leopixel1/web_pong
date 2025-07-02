@@ -16,9 +16,9 @@ class Pong {
         this.ballY = this.canvas.height / 2;
         
         // Speeds(fix)
-        this.paddleSpeed = 3; // vorher 5
-        this.ballSpeedX = 3;  // wird in resetBall überschrieben
-        this.ballSpeedY = 3;  // wird in resetBall überschrieben
+        this.paddleSpeed = 2; // vorher 3
+        this.ballSpeedX = 2;  // wird in resetBall überschrieben
+        this.ballSpeedY = 2;  // wird in resetBall überschrieben
         
         // Scores
         this.playerScore = 0;
@@ -107,7 +107,7 @@ class Pong {
             this.ballY + this.ballSize >= this.playerY &&
             this.ballY - this.ballSize <= this.playerY + this.paddleHeight
         ) {
-            this.ballSpeedX = Math.abs(this.ballSpeedX) * 1.02; // vorher 1.05
+            this.ballSpeedX = Math.abs(this.ballSpeedX) * 1.01; // vorher 1.02
             this.ballX = this.paddleWidth + this.ballSize;
         }
         // Rechtes Paddle
@@ -116,12 +116,12 @@ class Pong {
             this.ballY + this.ballSize >= this.computerY &&
             this.ballY - this.ballSize <= this.computerY + this.paddleHeight
         ) {
-            this.ballSpeedX = -Math.abs(this.ballSpeedX) * 1.02; // vorher 1.05
+            this.ballSpeedX = -Math.abs(this.ballSpeedX) * 1.01; // vorher 1.02
             this.ballX = this.canvas.width - this.paddleWidth - this.ballSize;
         }
 
         // Ballgeschwindigkeit begrenzen
-        const maxSpeed = 14;
+        const maxSpeed = 7; // vorher 14
         this.ballSpeedX = Math.max(-maxSpeed, Math.min(this.ballSpeedX, maxSpeed));
         this.ballSpeedY = Math.max(-maxSpeed, Math.min(this.ballSpeedY, maxSpeed));
 
@@ -145,7 +145,7 @@ class Pong {
         // Zufälliger Winkel zwischen -45° und 45° oder 135° und 225°
         let angle = (Math.random() * Math.PI / 2) - Math.PI / 4;
         if (Math.random() > 0.5) angle += Math.PI; // nach links oder rechts
-        const speed = 3.5; // vorher 6
+        const speed = 2.2; // vorher 3.5
         this.ballSpeedX = Math.cos(angle) * speed;
         this.ballSpeedY = Math.sin(angle) * speed;
     }
