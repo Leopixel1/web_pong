@@ -93,31 +93,44 @@ class Pong {
         this.ballX += this.ballSpeedX;
         this.ballY += this.ballSpeedY;
 
-        // Vertical collisions
-        if (this.ballY <= 0 || this.ballY >= this.canvas.height) {
+        // Vertical collisions (Ballgröße berücksichtigen)
+        if (this.ballY - this.ballSize <= 0 || this.ballY + this.ballSize >= this.canvas.height) {
             this.ballSpeedY = -this.ballSpeedY;
+            // Ball bleibt im Spielfeld
+            this.ballY = Math.max(this.ballSize, Math.min(this.ballY, this.canvas.height - this.ballSize));
         }
 
-        // Paddle collisions
-        if (this.ballX <= this.paddleWidth && 
-            this.ballY >= this.playerY && 
-            this.ballY <= this.playerY + this.paddleHeight) {
-            this.ballSpeedX = -this.ballSpeedX;
-            this.ballSpeedX *= 1.05; // Increase speed slightly
+        // Paddle collisions (Ballgröße berücksichtigen)
+        // Linkes Paddle
+        if (
+            this.ballX - this.ballSize <= this.paddleWidth &&
+            this.ballY + this.ballSize >= this.playerY &&
+            this.ballY - this.ballSize <= this.playerY + this.paddleHeight
+        ) {
+            this.ballSpeedX = Math.abs(this.ballSpeedX) * 1.05;
+            // Ball springt etwas weiter weg, damit er nicht "klebt"
+            this.ballX = this.paddleWidth + this.ballSize;
+        }
+        // Rechtes Paddle
+        if (
+            this.ballX + this.ballSize >= this.canvas.width - this.paddleWidth &&
+            this.ballY + this.ballSize >= this.computerY &&
+            this.ballY - this.ballSize <= this.computerY + this.paddleHeight
+        ) {
+            this.ballSpeedX = -Math.abs(this.ballSpeedX) * 1.05;
+            this.ballX = this.canvas.width - this.paddleWidth - this.ballSize;
         }
 
-        if (this.ballX >= this.canvas.width - this.paddleWidth && 
-            this.ballY >= this.computerY && 
-            this.ballY <= this.computerY + this.paddleHeight) {
-            this.ballSpeedX = -this.ballSpeedX;
-            this.ballSpeedX *= 1.05; // Increase speed slightly
-        }
+        // Ballgeschwindigkeit begrenzen
+        const maxSpeed = 14;
+        this.ballSpeedX = Math.max(-maxSpeed, Math.min(this.ballSpeedX, maxSpeed));
+        this.ballSpeedY = Math.max(-maxSpeed, Math.min(this.ballSpeedY, maxSpeed));
 
         // Scoring
-        if (this.ballX <= 0) {
+        if (this.ballX + this.ballSize <= 0) {
             this.computerScore++;
             this.resetBall();
-        } else if (this.ballX >= this.canvas.width) {
+        } else if (this.ballX - this.ballSize >= this.canvas.width) {
             this.playerScore++;
             this.resetBall();
         }
@@ -152,15 +165,24 @@ class Pong {
         this.ctx.stroke();
         this.ctx.setLineDash([]);
 
-        // Draw paddles
+        // Schatten für Paddles
+        this.ctx.save();
+        this.ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        this.ctx.shadowBlur = 10;
         this.ctx.fillStyle = '#fff';
         this.ctx.fillRect(0, this.playerY, this.paddleWidth, this.paddleHeight);
         this.ctx.fillRect(this.canvas.width - this.paddleWidth, this.computerY, this.paddleWidth, this.paddleHeight);
+        this.ctx.restore();
 
-        // Draw ball
+        // Ball mit Schatten
+        this.ctx.save();
+        this.ctx.shadowColor = 'rgba(0,0,0,0.7)';
+        this.ctx.shadowBlur = 15;
+        this.ctx.fillStyle = '#fff';
         this.ctx.beginPath();
         this.ctx.arc(this.ballX, this.ballY, this.ballSize, 0, Math.PI * 2);
         this.ctx.fill();
+        this.ctx.restore();
     }
 
     gameLoop() {
