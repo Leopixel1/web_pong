@@ -16,9 +16,9 @@ class Pong {
         this.ballY = this.canvas.height / 2;
         
         // Speeds
-        this.paddleSpeed = 5;
-        this.ballSpeedX = 5;
-        this.ballSpeedY = 5;
+        this.paddleSpeed = 3; // vorher 5
+        this.ballSpeedX = 3;  // wird in resetBall überschrieben
+        this.ballSpeedY = 3;  // wird in resetBall überschrieben
         
         // Scores
         this.playerScore = 0;
@@ -107,8 +107,7 @@ class Pong {
             this.ballY + this.ballSize >= this.playerY &&
             this.ballY - this.ballSize <= this.playerY + this.paddleHeight
         ) {
-            this.ballSpeedX = Math.abs(this.ballSpeedX) * 1.05;
-            // Ball springt etwas weiter weg, damit er nicht "klebt"
+            this.ballSpeedX = Math.abs(this.ballSpeedX) * 1.02; // vorher 1.05
             this.ballX = this.paddleWidth + this.ballSize;
         }
         // Rechtes Paddle
@@ -117,7 +116,7 @@ class Pong {
             this.ballY + this.ballSize >= this.computerY &&
             this.ballY - this.ballSize <= this.computerY + this.paddleHeight
         ) {
-            this.ballSpeedX = -Math.abs(this.ballSpeedX) * 1.05;
+            this.ballSpeedX = -Math.abs(this.ballSpeedX) * 1.02; // vorher 1.05
             this.ballX = this.canvas.width - this.paddleWidth - this.ballSize;
         }
 
@@ -146,7 +145,7 @@ class Pong {
         // Zufälliger Winkel zwischen -45° und 45° oder 135° und 225°
         let angle = (Math.random() * Math.PI / 2) - Math.PI / 4;
         if (Math.random() > 0.5) angle += Math.PI; // nach links oder rechts
-        const speed = 6;
+        const speed = 3.5; // vorher 6
         this.ballSpeedX = Math.cos(angle) * speed;
         this.ballSpeedY = Math.sin(angle) * speed;
     }
