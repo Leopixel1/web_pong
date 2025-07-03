@@ -30,6 +30,8 @@ canvas {
     display: flex;
     gap: 20px;
     align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
 }
 
 .score {
@@ -45,16 +47,55 @@ button {
     font-size: 16px;
     cursor: pointer;
     border-radius: 5px;
+    transition: all 0.2s ease;
 }
 
 button:hover {
     background-color: #ddd;
+    transform: translateY(-1px);
+}
+
+button:disabled {
+    background-color: #666;
+    color: #999;
+    cursor: not-allowed;
+    transform: none;
 }
 
 .mobile-controls {
     display: none;
     margin-top: 20px;
     gap: 20px;
+}
+
+.settings {
+    margin-top: 15px;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    color: #fff;
+}
+
+.settings label {
+    font-size: 14px;
+}
+
+.settings select {
+    background-color: #333;
+    color: #fff;
+    border: 1px solid #666;
+    padding: 5px 10px;
+    border-radius: 3px;
+}
+
+.instructions {
+    margin-top: 15px;
+    color: #ccc;
+    font-size: 12px;
+    text-align: center;
+    line-height: 1.4;
 }
 
 @media (max-width: 768px) {

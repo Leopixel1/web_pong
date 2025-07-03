@@ -11,15 +11,30 @@
         <canvas id="gameCanvas"></canvas>
         <div class="controls">
             <button id="startButton">Start</button>
+            <button id="pauseButton" disabled>Pause</button>
+            <button id="resetButton">Reset</button>
             <div class="score">
                 <span id="playerScore">0</span>
                 <span>:</span>
                 <span id="computerScore">0</span>
             </div>
         </div>
+        <div class="settings">
+            <label for="difficulty">Schwierigkeit:</label>
+            <select id="difficulty">
+                <option value="easy">Einfach</option>
+                <option value="medium" selected>Mittel</option>
+                <option value="hard">Schwer</option>
+            </select>
+            <button id="soundToggle">🔊 Sound</button>
+        </div>
         <div class="mobile-controls">
             <button id="upButton">↑</button>
             <button id="downButton">↓</button>
+        </div>
+        <div class="instructions">
+            <p>Steuerung: ↑/↓ Pfeiltasten oder Mobile-Buttons</p>
+            <p>Pause: Leertaste</p>
         </div>
     </div>
     <script src="js/game.js"></script>

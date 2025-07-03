@@ -29,6 +29,13 @@ class Pong {
         
         // Game state
         this.isPlaying = false;
+        this.isPaused = false;
+        this.difficulty = 'medium'; // easy, medium, hard
+        this.soundEnabled = true;
+        
+        // Sound-Effekte (Web Audio API für bessere Performance)
+        this.audioContext = null;
+        this.initAudio();
         
         // Controls
         this.upPressed = false;
@@ -47,6 +54,38 @@ class Pong {
         
         // Start button
         document.getElementById('startButton').addEventListener('click', () => this.startGame());
+        document.getElementById('pauseButton').addEventListener('click', () => this.togglePause());
+        document.getElementById('resetButton').addEventListener('click', () => this.resetGame());
+        document.getElementById('difficulty').addEventListener('change', (e) => this.changeDifficulty(e.target.value));
+        document.getElementById('soundToggle').addEventListener('click', () => this.toggleSound());
+    }
+
+    initAudio() {
+        try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (e) {
+            console.log('Web Audio API nicht unterstützt');
+            this.soundEnabled = false;
+        }
+    }
+
+    playSound(frequency, duration, type = 'sine') {
+        if (!this.soundEnabled || !this.audioContext) return;
+        
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+        
+        oscillator.frequency.value = frequency;
+        oscillator.type = type;
+        
+        gainNode.gain.setValueAtTime(0.1, this.audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+        
+        oscillator.start(this.audioContext.currentTime);
+        oscillator.stop(this.audioContext.currentTime + duration);
     }
 
     setCanvasSize() {
@@ -57,6 +96,9 @@ class Pong {
     startGame() {
         if (!this.isPlaying) {
             this.isPlaying = true;
+            this.isPaused = false;
+            document.getElementById('startButton').disabled = true;
+            document.getElementById('pauseButton').disabled = false;
             this.gameLoop();
         }
     }
@@ -64,11 +106,25 @@ class Pong {
     handleKeyDown(e) {
         if (e.key === 'ArrowUp') this.upPressed = true;
         if (e.key === 'ArrowDown') this.downPressed = true;
+        if (e.key === ' ') { // Leertaste für Pause
+            e.preventDefault();
+            this.togglePause();
+        }
     }
 
     handleKeyUp(e) {
         if (e.key === 'ArrowUp') this.upPressed = false;
         if (e.key === 'ArrowDown') this.downPressed = false;
+    }
+
+    togglePause() {
+        if (this.isPlaying) {
+            this.isPaused = !this.isPaused;
+            if (!this.isPaused) {
+                this.lastTime = performance.now(); // Reset timing nach Pause
+                this.gameLoop();
+            }
+        }
     }
 
     updatePaddles(deltaTime) {
@@ -82,16 +138,30 @@ class Pong {
             this.playerY += paddleMovement;
         }
 
-        // Computer paddle (verbesserte KI mit Fehlerquote)
+        // Computer paddle mit Schwierigkeitsgrad
         const computerCenter = this.computerY + this.paddleHeight / 2;
         const ballCenter = this.ballY;
-        // Fehlerquote: 10% Chance, dass die KI nichts macht
-        if (Math.random() < 0.1) return;
-        if (computerCenter < ballCenter - 35) {
-            this.computerY += paddleMovement * 0.7;
-        } else if (computerCenter > ballCenter + 35) {
-            this.computerY -= paddleMovement * 0.7;
+        
+        // Schwierigkeitsgrad-basierte Parameter
+        const difficultySettings = {
+            easy: { errorRate: 0.3, speed: 0.5, tolerance: 50 },
+            medium: { errorRate: 0.1, speed: 0.7, tolerance: 35 },
+            hard: { errorRate: 0.05, speed: 0.9, tolerance: 20 }
+        };
+        
+        const settings = difficultySettings[this.difficulty];
+        
+        // Fehlerquote basierend auf Schwierigkeit
+        if (Math.random() < settings.errorRate) return;
+        
+        if (computerCenter < ballCenter - settings.tolerance) {
+            this.computerY += paddleMovement * settings.speed;
+        } else if (computerCenter > ballCenter + settings.tolerance) {
+            this.computerY -= paddleMovement * settings.speed;
         }
+        
+        // Computer paddle bleibt im Spielfeld
+        this.computerY = Math.max(0, Math.min(this.computerY, this.canvas.height - this.paddleHeight));
     }
 
     updateBall(deltaTime) {
@@ -101,6 +171,7 @@ class Pong {
         // Vertical collisions (Ballgröße berücksichtigen)
         if (this.ballY - this.ballSize <= 0 || this.ballY + this.ballSize >= this.canvas.height) {
             this.ballSpeedY = -this.ballSpeedY;
+            this.playSound(300, 0.1); // Wandkollision Sound
             // Ball bleibt im Spielfeld
             this.ballY = Math.max(this.ballSize, Math.min(this.ballY, this.canvas.height - this.ballSize));
         }
@@ -112,7 +183,8 @@ class Pong {
             this.ballY + this.ballSize >= this.playerY &&
             this.ballY - this.ballSize <= this.playerY + this.paddleHeight
         ) {
-            this.ballSpeedX = Math.abs(this.ballSpeedX) * 1.01; // vorher 1.02
+            this.ballSpeedX = Math.abs(this.ballSpeedX) * 1.01;
+            this.playSound(200, 0.1); // Paddle-Hit Sound
             this.ballX = this.paddleWidth + this.ballSize;
         }
         // Rechtes Paddle
@@ -121,7 +193,8 @@ class Pong {
             this.ballY + this.ballSize >= this.computerY &&
             this.ballY - this.ballSize <= this.computerY + this.paddleHeight
         ) {
-            this.ballSpeedX = -Math.abs(this.ballSpeedX) * 1.01; // vorher 1.02
+            this.ballSpeedX = -Math.abs(this.ballSpeedX) * 1.01;
+            this.playSound(200, 0.1); // Paddle-Hit Sound
             this.ballX = this.canvas.width - this.paddleWidth - this.ballSize;
         }
 
@@ -133,9 +206,11 @@ class Pong {
         // Scoring
         if (this.ballX + this.ballSize <= 0) {
             this.computerScore++;
+            this.playSound(150, 0.3); // Tor Sound
             this.resetBall();
         } else if (this.ballX - this.ballSize >= this.canvas.width) {
             this.playerScore++;
+            this.playSound(400, 0.3); // Gewinn Sound
             this.resetBall();
         }
 
@@ -190,7 +265,7 @@ class Pong {
     }
 
     gameLoop(currentTime = 0) {
-        if (!this.isPlaying) return;
+        if (!this.isPlaying || this.isPaused) return;
 
         // Berechne deltaTime in Sekunden
         const deltaTime = (currentTime - this.lastTime) / 1000;
@@ -203,7 +278,7 @@ class Pong {
             this.draw();
         }
 
-        requestAnimationFrame((time) => this.gameLoop(time));
+        this.animationId = requestAnimationFrame((time) => this.gameLoop(time));
     }
 }
 
