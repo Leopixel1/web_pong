@@ -15,10 +15,13 @@ class Pong {
         this.ballX = this.canvas.width / 2;
         this.ballY = this.canvas.height / 2;
         
-        // Speeds(fix)
-        this.paddleSpeed = 2; // vorher 3
-        this.ballSpeedX = 2;  // wird in resetBall überschrieben
-        this.ballSpeedY = 2;  // wird in resetBall überschrieben
+        // Speeds (frameratunabhängig - Pixel pro Sekunde)
+        this.paddleSpeed = 300; // Pixel pro Sekunde
+        this.ballSpeedX = 200;  // wird in resetBall überschrieben
+        this.ballSpeedY = 200;  // wird in resetBall überschrieben
+        
+        // Timing für frameratunabhängige Bewegung
+        this.lastTime = 0;
         
         // Scores
         this.playerScore = 0;
@@ -68,13 +71,15 @@ class Pong {
         if (e.key === 'ArrowDown') this.downPressed = false;
     }
 
-    updatePaddles() {
+    updatePaddles(deltaTime) {
+        const paddleMovement = this.paddleSpeed * deltaTime;
+        
         // Player paddle
         if (this.upPressed && this.playerY > 0) {
-            this.playerY -= this.paddleSpeed;
+            this.playerY -= paddleMovement;
         }
         if (this.downPressed && this.playerY < this.canvas.height - this.paddleHeight) {
-            this.playerY += this.paddleSpeed;
+            this.playerY += paddleMovement;
         }
 
         // Computer paddle (verbesserte KI mit Fehlerquote)
@@ -83,15 +88,15 @@ class Pong {
         // Fehlerquote: 10% Chance, dass die KI nichts macht
         if (Math.random() < 0.1) return;
         if (computerCenter < ballCenter - 35) {
-            this.computerY += this.paddleSpeed * 0.7;
+            this.computerY += paddleMovement * 0.7;
         } else if (computerCenter > ballCenter + 35) {
-            this.computerY -= this.paddleSpeed * 0.7;
+            this.computerY -= paddleMovement * 0.7;
         }
     }
 
-    updateBall() {
-        this.ballX += this.ballSpeedX;
-        this.ballY += this.ballSpeedY;
+    updateBall(deltaTime) {
+        this.ballX += this.ballSpeedX * deltaTime;
+        this.ballY += this.ballSpeedY * deltaTime;
 
         // Vertical collisions (Ballgröße berücksichtigen)
         if (this.ballY - this.ballSize <= 0 || this.ballY + this.ballSize >= this.canvas.height) {
@@ -120,8 +125,8 @@ class Pong {
             this.ballX = this.canvas.width - this.paddleWidth - this.ballSize;
         }
 
-        // Ballgeschwindigkeit begrenzen
-        const maxSpeed = 7; // vorher 14
+        // Ballgeschwindigkeit begrenzen (Pixel pro Sekunde)
+        const maxSpeed = 400;
         this.ballSpeedX = Math.max(-maxSpeed, Math.min(this.ballSpeedX, maxSpeed));
         this.ballSpeedY = Math.max(-maxSpeed, Math.min(this.ballSpeedY, maxSpeed));
 
@@ -145,7 +150,7 @@ class Pong {
         // Zufälliger Winkel zwischen -45° und 45° oder 135° und 225°
         let angle = (Math.random() * Math.PI / 2) - Math.PI / 4;
         if (Math.random() > 0.5) angle += Math.PI; // nach links oder rechts
-        const speed = 2.2; // vorher 3.5
+        const speed = 220; // Pixel pro Sekunde
         this.ballSpeedX = Math.cos(angle) * speed;
         this.ballSpeedY = Math.sin(angle) * speed;
     }
@@ -184,14 +189,21 @@ class Pong {
         this.ctx.restore();
     }
 
-    gameLoop() {
+    gameLoop(currentTime = 0) {
         if (!this.isPlaying) return;
 
-        this.updatePaddles();
-        this.updateBall();
-        this.draw();
+        // Berechne deltaTime in Sekunden
+        const deltaTime = (currentTime - this.lastTime) / 1000;
+        this.lastTime = currentTime;
 
-        requestAnimationFrame(() => this.gameLoop());
+        // Überspringe den ersten Frame (deltaTime wäre zu groß)
+        if (deltaTime < 0.1) {
+            this.updatePaddles(deltaTime);
+            this.updateBall(deltaTime);
+            this.draw();
+        }
+
+        requestAnimationFrame((time) => this.gameLoop(time));
     }
 }
 
