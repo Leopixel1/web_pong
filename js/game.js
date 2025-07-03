@@ -32,6 +32,7 @@ class Pong {
         this.isPaused = false;
         this.difficulty = 'medium'; // easy, medium, hard
         this.soundEnabled = true;
+        this.isDarkTheme = localStorage.getItem('darkTheme') !== 'false'; // Default to dark theme
         
         // Sound-Effekte (Web Audio API für bessere Performance)
         this.audioContext = null;
@@ -58,6 +59,10 @@ class Pong {
         document.getElementById('resetButton').addEventListener('click', () => this.resetGame());
         document.getElementById('difficulty').addEventListener('change', (e) => this.changeDifficulty(e.target.value));
         document.getElementById('soundToggle').addEventListener('click', () => this.toggleSound());
+        document.getElementById('themeToggle').addEventListener('click', () => this.toggleTheme());
+        
+        // Initialize theme
+        this.updateTheme();
     }
 
     initAudio() {
@@ -231,8 +236,10 @@ class Pong {
     }
 
     draw() {
+        const colors = this.getThemeColors();
+        
         // Clear canvas
-        this.ctx.fillStyle = '#000';
+        this.ctx.fillStyle = colors.canvasBg;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         // Draw middle line
@@ -240,24 +247,24 @@ class Pong {
         this.ctx.beginPath();
         this.ctx.moveTo(this.canvas.width / 2, 0);
         this.ctx.lineTo(this.canvas.width / 2, this.canvas.height);
-        this.ctx.strokeStyle = '#fff';
+        this.ctx.strokeStyle = colors.gameElement;
         this.ctx.stroke();
         this.ctx.setLineDash([]);
 
         // Schatten für Paddles
         this.ctx.save();
-        this.ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        this.ctx.shadowColor = colors.shadowColor;
         this.ctx.shadowBlur = 10;
-        this.ctx.fillStyle = '#fff';
+        this.ctx.fillStyle = colors.gameElement;
         this.ctx.fillRect(0, this.playerY, this.paddleWidth, this.paddleHeight);
         this.ctx.fillRect(this.canvas.width - this.paddleWidth, this.computerY, this.paddleWidth, this.paddleHeight);
         this.ctx.restore();
 
         // Ball mit Schatten
         this.ctx.save();
-        this.ctx.shadowColor = 'rgba(0,0,0,0.7)';
+        this.ctx.shadowColor = colors.ballShadow;
         this.ctx.shadowBlur = 15;
-        this.ctx.fillStyle = '#fff';
+        this.ctx.fillStyle = colors.gameElement;
         this.ctx.beginPath();
         this.ctx.arc(this.ballX, this.ballY, this.ballSize, 0, Math.PI * 2);
         this.ctx.fill();
@@ -279,6 +286,73 @@ class Pong {
         }
 
         this.animationId = requestAnimationFrame((time) => this.gameLoop(time));
+    }
+
+    toggleSound() {
+        this.soundEnabled = !this.soundEnabled;
+        const button = document.getElementById('soundToggle');
+        button.textContent = this.soundEnabled ? '🔊 Sound' : '🔇 Sound';
+    }
+
+    toggleTheme() {
+        this.isDarkTheme = !this.isDarkTheme;
+        localStorage.setItem('darkTheme', this.isDarkTheme.toString());
+        this.updateTheme();
+    }
+
+    updateTheme() {
+        const body = document.body;
+        const button = document.getElementById('themeToggle');
+        
+        if (this.isDarkTheme) {
+            body.classList.remove('light-theme');
+            button.textContent = '🌙 Dark';
+        } else {
+            body.classList.add('light-theme');
+            button.textContent = '☀️ Light';
+        }
+    }
+
+    getThemeColors() {
+        const root = document.documentElement;
+        const computedStyle = getComputedStyle(root);
+        
+        return {
+            canvasBg: computedStyle.getPropertyValue('--canvas-bg').trim(),
+            gameElement: computedStyle.getPropertyValue('--game-element-color').trim(),
+            shadowColor: this.isDarkTheme ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.8)',
+            ballShadow: this.isDarkTheme ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.9)'
+        };
+    }
+
+    changeDifficulty(difficulty) {
+        this.difficulty = difficulty;
+        // Difficulty affects computer paddle speed in updatePaddles method
+    }
+
+    resetGame() {
+        this.isPlaying = false;
+        this.isPaused = false;
+        this.playerScore = 0;
+        this.computerScore = 0;
+        this.resetBall();
+        
+        // Reset positions
+        this.playerY = (this.canvas.height - this.paddleHeight) / 2;
+        this.computerY = (this.canvas.height - this.paddleHeight) / 2;
+        
+        // Update UI
+        document.getElementById('startButton').disabled = false;
+        document.getElementById('pauseButton').disabled = true;
+        document.getElementById('playerScore').textContent = this.playerScore;
+        document.getElementById('computerScore').textContent = this.computerScore;
+        
+        // Redraw game
+        this.draw();
+        
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+        }
     }
 }
 
