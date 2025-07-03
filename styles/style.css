@@ -1,3 +1,43 @@
+:root {
+    /* Dark theme colors (default) */
+    --bg-color: #000;
+    --canvas-bg: #000;
+    --canvas-border: #fff;
+    --game-element-color: #fff;
+    --text-color: #fff;
+    --text-muted: #ccc;
+    --button-bg: #fff;
+    --button-text: #000;
+    --button-hover-bg: #ddd;
+    --button-disabled-bg: #666;
+    --button-disabled-text: #999;
+    --select-bg: #333;
+    --select-text: #fff;
+    --select-border: #666;
+    --shadow-color: rgba(0, 0, 0, 0.5);
+    --ball-shadow: rgba(0, 0, 0, 0.7);
+}
+
+body.light-theme {
+    /* Light theme colors */
+    --bg-color: #f0f0f0;
+    --canvas-bg: #fff;
+    --canvas-border: #333;
+    --game-element-color: #333;
+    --text-color: #333;
+    --text-muted: #666;
+    --button-bg: #333;
+    --button-text: #fff;
+    --button-hover-bg: #555;
+    --button-disabled-bg: #ccc;
+    --button-disabled-text: #888;
+    --select-bg: #fff;
+    --select-text: #333;
+    --select-border: #ccc;
+    --shadow-color: rgba(255, 255, 255, 0.8);
+    --ball-shadow: rgba(255, 255, 255, 0.9);
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -5,12 +45,13 @@
 }
 
 body {
-    background-color: #000;
+    background-color: var(--bg-color);
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
     font-family: Arial, sans-serif;
+    transition: background-color 0.3s ease;
 }
 
 .game-container {
@@ -21,8 +62,9 @@ body {
 }
 
 canvas {
-    background-color: #000;
-    border: 2px solid #fff;
+    background-color: var(--canvas-bg);
+    border: 2px solid var(--canvas-border);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .controls {
@@ -35,13 +77,15 @@ canvas {
 }
 
 .score {
-    color: #fff;
+    color: var(--text-color);
     font-size: 24px;
     font-weight: bold;
+    transition: color 0.3s ease;
 }
 
 button {
-    background-color: #fff;
+    background-color: var(--button-bg);
+    color: var(--button-text);
     border: none;
     padding: 10px 20px;
     font-size: 16px;
@@ -51,13 +95,13 @@ button {
 }
 
 button:hover {
-    background-color: #ddd;
+    background-color: var(--button-hover-bg);
     transform: translateY(-1px);
 }
 
 button:disabled {
-    background-color: #666;
-    color: #999;
+    background-color: var(--button-disabled-bg);
+    color: var(--button-disabled-text);
     cursor: not-allowed;
     transform: none;
 }
@@ -75,7 +119,8 @@ button:disabled {
     align-items: center;
     flex-wrap: wrap;
     justify-content: center;
-    color: #fff;
+    color: var(--text-color);
+    transition: color 0.3s ease;
 }
 
 .settings label {
@@ -83,19 +128,21 @@ button:disabled {
 }
 
 .settings select {
-    background-color: #333;
-    color: #fff;
-    border: 1px solid #666;
+    background-color: var(--select-bg);
+    color: var(--select-text);
+    border: 1px solid var(--select-border);
     padding: 5px 10px;
     border-radius: 3px;
+    transition: all 0.3s ease;
 }
 
 .instructions {
     margin-top: 15px;
-    color: #ccc;
+    color: var(--text-muted);
     font-size: 12px;
     text-align: center;
     line-height: 1.4;
+    transition: color 0.3s ease;
 }
 
 @media (max-width: 768px) {
