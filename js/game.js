@@ -311,6 +311,9 @@ class Pong {
             body.classList.add('light-theme');
             button.textContent = '☀️ Light';
         }
+        
+        // Redraw canvas with new theme colors
+        this.draw();
     }
 
     getThemeColors() {
