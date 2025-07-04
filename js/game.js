@@ -30,7 +30,7 @@ class Pong {
         // Game state
         this.isPlaying = false;
         this.isPaused = false;
-        this.difficulty = 'medium'; // easy, medium, hard
+        this.difficulty = localStorage.getItem('difficulty') || 'medium'; // easy, medium, hard
         this.soundEnabled = true;
         this.isDarkTheme = localStorage.getItem('darkTheme') !== 'false'; // Default to dark theme
         
@@ -63,6 +63,9 @@ class Pong {
         
         // Initialize theme
         this.updateTheme();
+        
+        // Initialize difficulty dropdown to match current difficulty
+        document.getElementById('difficulty').value = this.difficulty;
     }
 
     initAudio() {
@@ -154,7 +157,7 @@ class Pong {
             hard: { errorRate: 0.05, speed: 0.9, tolerance: 20 }
         };
         
-        const settings = difficultySettings[this.difficulty];
+        const settings = difficultySettings[this.difficulty] || difficultySettings.medium;
         
         // Fehlerquote basierend auf Schwierigkeit
         if (Math.random() < settings.errorRate) return;
@@ -330,6 +333,7 @@ class Pong {
 
     changeDifficulty(difficulty) {
         this.difficulty = difficulty;
+        localStorage.setItem('difficulty', difficulty);
         // Difficulty affects computer paddle speed in updatePaddles method
     }
 
