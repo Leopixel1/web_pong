@@ -63,6 +63,9 @@ class Pong {
         
         // Initialize theme
         this.updateTheme();
+        
+        // Initialize difficulty dropdown to match current difficulty
+        document.getElementById('difficulty').value = this.difficulty;
     }
 
     initAudio() {
