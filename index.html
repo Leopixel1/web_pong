@@ -19,6 +19,27 @@
                 <span id="computerScore">0</span>
             </div>
         </div>
+        <div class="game-mode">
+            <label for="gameMode">Spielmodus:</label>
+            <select id="gameMode">
+                <option value="singleplayer">Einzelspieler</option>
+                <option value="multiplayer">Mehrspieler (P2P)</option>
+            </select>
+        </div>
+        <div class="multiplayer-controls" id="multiplayerControls" style="display: none;">
+            <div class="multiplayer-section">
+                <button id="hostButton">Spiel erstellen</button>
+                <div class="join-section">
+                    <input type="text" id="gameIdInput" placeholder="Spiel-ID eingeben">
+                    <button id="joinButton">Spiel beitreten</button>
+                </div>
+            </div>
+            <div class="connection-status" id="connectionStatus"></div>
+            <div class="game-id" id="gameIdDisplay" style="display: none;">
+                Spiel-ID: <span id="gameId"></span>
+                <button id="copyIdButton">Kopieren</button>
+            </div>
+        </div>
         <div class="settings">
             <label for="difficulty">Schwierigkeit:</label>
             <select id="difficulty">
@@ -34,7 +55,8 @@
             <button id="downButton">↓</button>
         </div>
         <div class="instructions">
-            <p>Steuerung: ↑/↓ Pfeiltasten oder Mobile-Buttons</p>
+            <p>Einzelspieler: ↑/↓ Pfeiltasten oder Mobile-Buttons</p>
+            <p>Mehrspieler: Spieler 1 (↑/↓), Spieler 2 (W/S)</p>
             <p>Pause: Leertaste</p>
         </div>
     </div>

@@ -34,6 +34,14 @@ class Pong {
         this.soundEnabled = true;
         this.isDarkTheme = localStorage.getItem('darkTheme') !== 'false'; // Default to dark theme
         
+        // Multiplayer state
+        this.gameMode = 'singleplayer'; // 'singleplayer' or 'multiplayer'
+        this.isHost = false;
+        this.peer = null;
+        this.connection = null;
+        this.isConnected = false;
+        this.remotePlayerY = (this.canvas.height - this.paddleHeight) / 2;
+        
         // Sound-Effekte (Web Audio API für bessere Performance)
         this.audioContext = null;
         this.initAudio();
@@ -41,6 +49,8 @@ class Pong {
         // Controls
         this.upPressed = false;
         this.downPressed = false;
+        this.player2UpPressed = false;
+        this.player2DownPressed = false;
         
         // Event listeners
         window.addEventListener('resize', () => this.setCanvasSize());
@@ -53,13 +63,19 @@ class Pong {
         document.getElementById('downButton').addEventListener('touchstart', () => this.downPressed = true);
         document.getElementById('downButton').addEventListener('touchend', () => this.downPressed = false);
         
-        // Start button
+        // Game controls
         document.getElementById('startButton').addEventListener('click', () => this.startGame());
         document.getElementById('pauseButton').addEventListener('click', () => this.togglePause());
         document.getElementById('resetButton').addEventListener('click', () => this.resetGame());
         document.getElementById('difficulty').addEventListener('change', (e) => this.changeDifficulty(e.target.value));
         document.getElementById('soundToggle').addEventListener('click', () => this.toggleSound());
         document.getElementById('themeToggle').addEventListener('click', () => this.toggleTheme());
+        
+        // Multiplayer controls
+        document.getElementById('gameMode').addEventListener('change', (e) => this.changeGameMode(e.target.value));
+        document.getElementById('hostButton').addEventListener('click', () => this.hostGame());
+        document.getElementById('joinButton').addEventListener('click', () => this.joinGame());
+        document.getElementById('copyIdButton').addEventListener('click', () => this.copyGameId());
         
         // Initialize theme
         this.updateTheme();
@@ -102,18 +118,36 @@ class Pong {
     }
 
     startGame() {
+        if (this.gameMode === 'multiplayer' && !this.isConnected) {
+            this.updateConnectionStatus('Erst Verbindung zu einem anderen Spieler herstellen');
+            return;
+        }
+        
         if (!this.isPlaying) {
             this.isPlaying = true;
             this.isPaused = false;
             document.getElementById('startButton').disabled = true;
             document.getElementById('pauseButton').disabled = false;
+            
+            if (this.gameMode === 'multiplayer') {
+                this.sendData({ type: 'gameState', isPlaying: true, isPaused: false });
+            }
+            
             this.gameLoop();
         }
     }
 
     handleKeyDown(e) {
+        // Player 1 controls (left paddle)
         if (e.key === 'ArrowUp') this.upPressed = true;
         if (e.key === 'ArrowDown') this.downPressed = true;
+        
+        // Player 2 controls (right paddle) - W/S keys for multiplayer
+        if (this.gameMode === 'multiplayer') {
+            if (e.key === 'w' || e.key === 'W') this.player2UpPressed = true;
+            if (e.key === 's' || e.key === 'S') this.player2DownPressed = true;
+        }
+        
         if (e.key === ' ') { // Leertaste für Pause
             e.preventDefault();
             this.togglePause();
@@ -121,8 +155,15 @@ class Pong {
     }
 
     handleKeyUp(e) {
+        // Player 1 controls
         if (e.key === 'ArrowUp') this.upPressed = false;
         if (e.key === 'ArrowDown') this.downPressed = false;
+        
+        // Player 2 controls
+        if (this.gameMode === 'multiplayer') {
+            if (e.key === 'w' || e.key === 'W') this.player2UpPressed = false;
+            if (e.key === 's' || e.key === 'S') this.player2DownPressed = false;
+        }
     }
 
     togglePause() {
@@ -138,7 +179,7 @@ class Pong {
     updatePaddles(deltaTime) {
         const paddleMovement = this.paddleSpeed * deltaTime;
         
-        // Player paddle
+        // Player 1 paddle (left)
         if (this.upPressed && this.playerY > 0) {
             this.playerY -= paddleMovement;
         }
@@ -146,30 +187,41 @@ class Pong {
             this.playerY += paddleMovement;
         }
 
-        // Computer paddle mit Schwierigkeitsgrad
-        const computerCenter = this.computerY + this.paddleHeight / 2;
-        const ballCenter = this.ballY;
-        
-        // Schwierigkeitsgrad-basierte Parameter
-        const difficultySettings = {
-            easy: { errorRate: 0.3, speed: 0.5, tolerance: 50 },
-            medium: { errorRate: 0.1, speed: 0.7, tolerance: 35 },
-            hard: { errorRate: 0.05, speed: 0.9, tolerance: 20 }
-        };
-        
-        const settings = difficultySettings[this.difficulty] || difficultySettings.medium;
-        
-        // Fehlerquote basierend auf Schwierigkeit
-        if (Math.random() < settings.errorRate) return;
-        
-        if (computerCenter < ballCenter - settings.tolerance) {
-            this.computerY += paddleMovement * settings.speed;
-        } else if (computerCenter > ballCenter + settings.tolerance) {
-            this.computerY -= paddleMovement * settings.speed;
+        // Computer/Player 2 paddle (right)
+        if (this.gameMode === 'singleplayer') {
+            // Computer paddle mit Schwierigkeitsgrad
+            const computerCenter = this.computerY + this.paddleHeight / 2;
+            const ballCenter = this.ballY;
+            
+            // Schwierigkeitsgrad-basierte Parameter
+            const difficultySettings = {
+                easy: { errorRate: 0.3, speed: 0.5, tolerance: 50 },
+                medium: { errorRate: 0.1, speed: 0.7, tolerance: 35 },
+                hard: { errorRate: 0.05, speed: 0.9, tolerance: 20 }
+            };
+            
+            const settings = difficultySettings[this.difficulty] || difficultySettings.medium;
+            
+            // Fehlerquote basierend auf Schwierigkeit
+            if (Math.random() < settings.errorRate) return;
+            
+            if (computerCenter < ballCenter - settings.tolerance) {
+                this.computerY += paddleMovement * settings.speed;
+            } else if (computerCenter > ballCenter + settings.tolerance) {
+                this.computerY -= paddleMovement * settings.speed;
+            }
+            
+            // Computer paddle bleibt im Spielfeld
+            this.computerY = Math.max(0, Math.min(this.computerY, this.canvas.height - this.paddleHeight));
+        } else if (this.gameMode === 'multiplayer') {
+            // Player 2 controls (W/S keys)
+            if (this.player2UpPressed && this.computerY > 0) {
+                this.computerY -= paddleMovement;
+            }
+            if (this.player2DownPressed && this.computerY < this.canvas.height - this.paddleHeight) {
+                this.computerY += paddleMovement;
+            }
         }
-        
-        // Computer paddle bleibt im Spielfeld
-        this.computerY = Math.max(0, Math.min(this.computerY, this.canvas.height - this.paddleHeight));
     }
 
     updateBall(deltaTime) {
@@ -185,7 +237,7 @@ class Pong {
         }
 
         // Paddle collisions (Ballgröße berücksichtigen)
-        // Linkes Paddle
+        // Linkes Paddle (Player 1)
         if (
             this.ballX - this.ballSize <= this.paddleWidth &&
             this.ballY + this.ballSize >= this.playerY &&
@@ -195,7 +247,7 @@ class Pong {
             this.playSound(200, 0.1); // Paddle-Hit Sound
             this.ballX = this.paddleWidth + this.ballSize;
         }
-        // Rechtes Paddle
+        // Rechtes Paddle (Computer/Player 2)
         if (
             this.ballX + this.ballSize >= this.canvas.width - this.paddleWidth &&
             this.ballY + this.ballSize >= this.computerY &&
@@ -337,6 +389,86 @@ class Pong {
         // Difficulty affects computer paddle speed in updatePaddles method
     }
 
+    changeGameMode(mode) {
+        this.gameMode = mode;
+        const multiplayerControls = document.getElementById('multiplayerControls');
+        
+        if (mode === 'multiplayer') {
+            multiplayerControls.style.display = 'block';
+            this.initPeer();
+        } else {
+            multiplayerControls.style.display = 'none';
+            this.disconnectPeer();
+        }
+        
+        this.resetGame();
+    }
+
+    initPeer() {
+        // For now, implement local multiplayer (same device) instead of P2P
+        // This allows immediate testing while still adding multiplayer functionality
+        this.updateConnectionStatus('Lokaler Mehrspieler-Modus aktiv');
+        this.isConnected = true;
+        document.getElementById('startButton').disabled = false;
+    }
+
+    hostGame() {
+        this.isHost = true;
+        this.updateConnectionStatus('Lokaler Mehrspieler - Sie sind Spieler 1 (links)');
+        this.isConnected = true;
+        document.getElementById('startButton').disabled = false;
+    }
+
+    joinGame() {
+        this.isHost = false;
+        this.updateConnectionStatus('Lokaler Mehrspieler - Sie sind Spieler 2 (rechts)');
+        this.isConnected = true;
+        document.getElementById('startButton').disabled = false;
+    }
+
+    setupConnection() {
+        // Local multiplayer doesn't need network connection setup
+        this.isConnected = true;
+    }
+
+    handleRemoteData(data) {
+        // For local multiplayer, this method is not used
+        // but kept for future P2P implementation
+    }
+
+    sendData(data) {
+        // For local multiplayer, data is shared directly
+        // but kept for future P2P implementation
+    }
+
+    copyGameId() {
+        const gameId = document.getElementById('gameId').textContent;
+        navigator.clipboard.writeText(gameId).then(() => {
+            this.updateConnectionStatus('Spiel-ID kopiert!');
+        }).catch(() => {
+            this.updateConnectionStatus('Fehler beim Kopieren');
+        });
+    }
+
+    updateConnectionStatus(message) {
+        document.getElementById('connectionStatus').textContent = message;
+    }
+
+    disconnectPeer() {
+        if (this.connection) {
+            this.connection.close();
+            this.connection = null;
+        }
+        if (this.peer) {
+            this.peer.destroy();
+            this.peer = null;
+        }
+        this.isConnected = false;
+        this.isHost = false;
+        document.getElementById('gameIdDisplay').style.display = 'none';
+        this.updateConnectionStatus('');
+    }
+
     resetGame() {
         this.isPlaying = false;
         this.isPaused = false;
@@ -347,12 +479,19 @@ class Pong {
         // Reset positions
         this.playerY = (this.canvas.height - this.paddleHeight) / 2;
         this.computerY = (this.canvas.height - this.paddleHeight) / 2;
+        this.remotePlayerY = (this.canvas.height - this.paddleHeight) / 2;
         
         // Update UI
-        document.getElementById('startButton').disabled = false;
+        document.getElementById('startButton').disabled = (this.gameMode === 'multiplayer' && !this.isConnected);
         document.getElementById('pauseButton').disabled = true;
         document.getElementById('playerScore').textContent = this.playerScore;
         document.getElementById('computerScore').textContent = this.computerScore;
+        
+        // Send reset state to remote player in multiplayer mode
+        if (this.gameMode === 'multiplayer' && this.isConnected) {
+            this.sendData({ type: 'gameState', isPlaying: false, isPaused: false });
+            this.sendData({ type: 'score', player: 0, computer: 0 });
+        }
         
         // Redraw game
         this.draw();
