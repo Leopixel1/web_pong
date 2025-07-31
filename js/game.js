@@ -35,12 +35,13 @@ class Pong {
         this.isDarkTheme = localStorage.getItem('darkTheme') !== 'false'; // Default to dark theme
         
         // Multiplayer state
-        this.gameMode = 'singleplayer'; // 'singleplayer' or 'multiplayer'
+        this.gameMode = 'singleplayer'; // 'singleplayer', 'local-multiplayer', or 'online-multiplayer'
         this.isHost = false;
         this.peer = null;
         this.connection = null;
         this.isConnected = false;
         this.remotePlayerY = (this.canvas.height - this.paddleHeight) / 2;
+        this.gameId = null;
         
         // Sound-Effekte (Web Audio API für bessere Performance)
         this.audioContext = null;
@@ -118,7 +119,7 @@ class Pong {
     }
 
     startGame() {
-        if (this.gameMode === 'multiplayer' && !this.isConnected) {
+        if (this.gameMode === 'online-multiplayer' && !this.isConnected) {
             this.updateConnectionStatus('Erst Verbindung zu einem anderen Spieler herstellen');
             return;
         }
@@ -129,7 +130,7 @@ class Pong {
             document.getElementById('startButton').disabled = true;
             document.getElementById('pauseButton').disabled = false;
             
-            if (this.gameMode === 'multiplayer') {
+            if (this.gameMode === 'online-multiplayer') {
                 this.sendData({ type: 'gameState', isPlaying: true, isPaused: false });
             }
             
@@ -142,10 +143,21 @@ class Pong {
         if (e.key === 'ArrowUp') this.upPressed = true;
         if (e.key === 'ArrowDown') this.downPressed = true;
         
-        // Player 2 controls (right paddle) - W/S keys for multiplayer
-        if (this.gameMode === 'multiplayer') {
+        // Player 2 controls (right paddle) - W/S keys for local multiplayer
+        if (this.gameMode === 'local-multiplayer') {
             if (e.key === 'w' || e.key === 'W') this.player2UpPressed = true;
             if (e.key === 's' || e.key === 'S') this.player2DownPressed = true;
+        }
+        
+        // Online multiplayer - send player movements to remote peer
+        if (this.gameMode === 'online-multiplayer' && this.isConnected) {
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                this.sendData({ 
+                    type: 'playerMove', 
+                    up: this.upPressed, 
+                    down: this.downPressed 
+                });
+            }
         }
         
         if (e.key === ' ') { // Leertaste für Pause
@@ -159,10 +171,21 @@ class Pong {
         if (e.key === 'ArrowUp') this.upPressed = false;
         if (e.key === 'ArrowDown') this.downPressed = false;
         
-        // Player 2 controls
-        if (this.gameMode === 'multiplayer') {
+        // Player 2 controls for local multiplayer
+        if (this.gameMode === 'local-multiplayer') {
             if (e.key === 'w' || e.key === 'W') this.player2UpPressed = false;
             if (e.key === 's' || e.key === 'S') this.player2DownPressed = false;
+        }
+        
+        // Online multiplayer - send player movements to remote peer
+        if (this.gameMode === 'online-multiplayer' && this.isConnected) {
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                this.sendData({ 
+                    type: 'playerMove', 
+                    up: this.upPressed, 
+                    down: this.downPressed 
+                });
+            }
         }
     }
 
@@ -185,6 +208,14 @@ class Pong {
         }
         if (this.downPressed && this.playerY < this.canvas.height - this.paddleHeight) {
             this.playerY += paddleMovement;
+        }
+        
+        // Send player movement to remote peer in online multiplayer
+        if (this.gameMode === 'online-multiplayer' && this.isConnected && (this.upPressed || this.downPressed)) {
+            this.sendData({ 
+                type: 'playerMove', 
+                playerY: this.playerY
+            });
         }
 
         // Computer/Player 2 paddle (right)
@@ -213,13 +244,18 @@ class Pong {
             
             // Computer paddle bleibt im Spielfeld
             this.computerY = Math.max(0, Math.min(this.computerY, this.canvas.height - this.paddleHeight));
-        } else if (this.gameMode === 'multiplayer') {
+        } else if (this.gameMode === 'local-multiplayer') {
             // Player 2 controls (W/S keys)
             if (this.player2UpPressed && this.computerY > 0) {
                 this.computerY -= paddleMovement;
             }
             if (this.player2DownPressed && this.computerY < this.canvas.height - this.paddleHeight) {
                 this.computerY += paddleMovement;
+            }
+        } else if (this.gameMode === 'online-multiplayer') {
+            // Use remote player position received from peer
+            if (this.isConnected) {
+                this.computerY = this.remotePlayerY;
             }
         }
     }
@@ -268,10 +304,28 @@ class Pong {
             this.computerScore++;
             this.playSound(150, 0.3); // Tor Sound
             this.resetBall();
+            
+            // Sync score in online multiplayer
+            if (this.gameMode === 'online-multiplayer' && this.isConnected && this.isHost) {
+                this.sendData({ 
+                    type: 'score', 
+                    player: this.playerScore, 
+                    computer: this.computerScore 
+                });
+            }
         } else if (this.ballX - this.ballSize >= this.canvas.width) {
             this.playerScore++;
             this.playSound(400, 0.3); // Gewinn Sound
             this.resetBall();
+            
+            // Sync score in online multiplayer
+            if (this.gameMode === 'online-multiplayer' && this.isConnected && this.isHost) {
+                this.sendData({ 
+                    type: 'score', 
+                    player: this.playerScore, 
+                    computer: this.computerScore 
+                });
+            }
         }
 
         // Update score display
@@ -338,6 +392,20 @@ class Pong {
             this.updatePaddles(deltaTime);
             this.updateBall(deltaTime);
             this.draw();
+            
+            // Send game state to remote player in online multiplayer (only host controls ball)
+            if (this.gameMode === 'online-multiplayer' && this.isConnected && this.isHost) {
+                // Send ball position periodically (every few frames)
+                if (Math.random() < 0.1) { // 10% chance per frame
+                    this.sendData({
+                        type: 'ballPosition',
+                        x: this.ballX,
+                        y: this.ballY,
+                        speedX: this.ballSpeedX,
+                        speedY: this.ballSpeedY
+                    });
+                }
+            }
         }
 
         this.animationId = requestAnimationFrame((time) => this.gameLoop(time));
@@ -392,12 +460,19 @@ class Pong {
     changeGameMode(mode) {
         this.gameMode = mode;
         const multiplayerControls = document.getElementById('multiplayerControls');
+        const localMultiplayerControls = document.getElementById('localMultiplayerControls');
         
-        if (mode === 'multiplayer') {
+        // Hide all multiplayer controls first
+        multiplayerControls.style.display = 'none';
+        localMultiplayerControls.style.display = 'none';
+        
+        if (mode === 'local-multiplayer') {
+            localMultiplayerControls.style.display = 'block';
+            this.isConnected = true; // Local multiplayer is always "connected"
+        } else if (mode === 'online-multiplayer') {
             multiplayerControls.style.display = 'block';
-            this.initPeer();
+            this.disconnectPeer(); // Reset connection state
         } else {
-            multiplayerControls.style.display = 'none';
             this.disconnectPeer();
         }
         
@@ -405,40 +480,241 @@ class Pong {
     }
 
     initPeer() {
-        // For now, implement local multiplayer (same device) instead of P2P
-        // This allows immediate testing while still adding multiplayer functionality
-        this.updateConnectionStatus('Lokaler Mehrspieler-Modus aktiv');
-        this.isConnected = true;
-        document.getElementById('startButton').disabled = false;
+        // Initialize WebRTC for peer-to-peer connection
+        this.updateConnectionStatus('WebRTC wird initialisiert...');
+        
+        // Generate a random game ID for this session
+        this.gameId = Math.random().toString(36).substr(2, 9);
+        
+        // For demo purposes, we'll use a simple WebRTC setup
+        // In a real implementation, you'd need a signaling server
+        this.updateConnectionStatus('Bereit für P2P-Verbindung');
     }
 
-    hostGame() {
+    async hostGame() {
         this.isHost = true;
-        this.updateConnectionStatus('Lokaler Mehrspieler - Sie sind Spieler 1 (links)');
-        this.isConnected = true;
-        document.getElementById('startButton').disabled = false;
+        this.updateConnectionStatus('Erstelle Online-Spiel...');
+        
+        try {
+            // Create WebRTC peer connection
+            this.peerConnection = new RTCPeerConnection({
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ]
+            });
+            
+            // Create data channel for game communication
+            this.dataChannel = this.peerConnection.createDataChannel('gameData', {
+                ordered: true
+            });
+            
+            this.setupDataChannelHandlers(this.dataChannel);
+            this.setupPeerConnectionHandlers();
+            
+            // Generate unique game ID
+            this.gameId = Date.now().toString(36) + Math.random().toString(36).substr(2);
+            
+            // Create offer
+            const offer = await this.peerConnection.createOffer();
+            await this.peerConnection.setLocalDescription(offer);
+            
+            // Display game ID and offer for sharing
+            this.displayGameId();
+            this.updateConnectionStatus(`Warten auf Spieler... Teile die Spiel-ID: ${this.gameId}`);
+            
+            // In a real implementation, you'd send this offer through a signaling server
+            // For now, we'll store it locally and display instructions
+            this.pendingOffer = offer;
+            this.showOfferInstructions();
+            
+        } catch (error) {
+            console.error('Fehler beim Erstellen des Online-Spiels:', error);
+            this.updateConnectionStatus('Fehler beim Erstellen des Online-Spiels');
+        }
     }
 
-    joinGame() {
+    async joinGame() {
         this.isHost = false;
-        this.updateConnectionStatus('Lokaler Mehrspieler - Sie sind Spieler 2 (rechts)');
-        this.isConnected = true;
-        document.getElementById('startButton').disabled = false;
+        const gameId = document.getElementById('gameIdInput').value.trim();
+        
+        if (!gameId) {
+            this.updateConnectionStatus('Bitte Spiel-ID eingeben');
+            return;
+        }
+        
+        this.updateConnectionStatus('Verbinde mit Online-Spiel...');
+        
+        try {
+            // Create WebRTC peer connection
+            this.peerConnection = new RTCPeerConnection({
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ]
+            });
+            
+            this.setupPeerConnectionHandlers();
+            
+            // In a real implementation, you'd get the offer from a signaling server
+            // For now, we'll simulate this with localStorage or prompt
+            this.updateConnectionStatus('Hole Spieldetails... (In einer echten Implementierung würde hier ein Signaling-Server verwendet)');
+            
+            // Set up data channel handler for incoming connection
+            this.peerConnection.ondatachannel = (event) => {
+                this.dataChannel = event.channel;
+                this.setupDataChannelHandlers(this.dataChannel);
+            };
+            
+            this.showJoinInstructions();
+            
+        } catch (error) {
+            console.error('Fehler beim Beitreten des Online-Spiels:', error);
+            this.updateConnectionStatus('Fehler beim Beitreten des Online-Spiels');
+        }
+    }
+
+    setupPeerConnectionHandlers() {
+        this.peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                // In a real implementation, send this to the other peer via signaling server
+                console.log('ICE candidate:', event.candidate);
+            }
+        };
+        
+        this.peerConnection.onconnectionstatechange = () => {
+            console.log('Connection state:', this.peerConnection.connectionState);
+            if (this.peerConnection.connectionState === 'connected') {
+                this.isConnected = true;
+                this.updateConnectionStatus('Online-Verbindung hergestellt! Spiel kann gestartet werden.');
+                document.getElementById('startButton').disabled = false;
+            } else if (this.peerConnection.connectionState === 'disconnected' || 
+                      this.peerConnection.connectionState === 'failed') {
+                this.isConnected = false;
+                this.updateConnectionStatus('Verbindung verloren');
+                document.getElementById('startButton').disabled = true;
+            }
+        };
+    }
+
+    setupDataChannelHandlers(channel) {
+        channel.onopen = () => {
+            console.log('Data channel opened');
+            this.isConnected = true;
+            this.updateConnectionStatus('Online-Verbindung hergestellt! Spiel kann gestartet werden.');
+            document.getElementById('startButton').disabled = false;
+        };
+        
+        channel.onclose = () => {
+            console.log('Data channel closed');
+            this.isConnected = false;
+            this.updateConnectionStatus('Verbindung getrennt');
+            document.getElementById('startButton').disabled = true;
+        };
+        
+        channel.onmessage = (event) => {
+            this.handleRemoteData(JSON.parse(event.data));
+        };
+        
+        channel.onerror = (error) => {
+            console.error('Data channel error:', error);
+            this.updateConnectionStatus('Verbindungsfehler');
+        };
+    }
+
+    showOfferInstructions() {
+        const instructions = `
+Um einen anderen Spieler einzuladen:
+
+1. Der andere Spieler sollte "Online-Spiel beitreten" wählen
+2. Die Spiel-ID ${this.gameId} eingeben
+3. In einer vollständigen Implementierung würde ein Signaling-Server verwendet
+
+Hinweis: Dies ist eine Demo-Implementierung. Für echtes P2P zwischen verschiedenen Netzwerken wird ein Signaling-Server benötigt.
+        `;
+        
+        this.updateConnectionStatus(instructions);
+    }
+
+    showJoinInstructions() {
+        const instructions = `
+Hinweis: Dies ist eine Demo der WebRTC P2P-Funktionalität.
+
+Für eine vollständige Implementierung wird ein Signaling-Server benötigt, um:
+- Offers und Answers zwischen Peers auszutauschen
+- ICE candidates zu übertragen
+- Verbindungen zwischen verschiedenen Netzwerken zu ermöglichen
+
+Aktuell können nur Verbindungen im gleichen lokalen Netzwerk getestet werden.
+        `;
+        
+        this.updateConnectionStatus(instructions);
+    }
+
+    displayGameId() {
+        document.getElementById('gameId').textContent = this.gameId;
+        document.getElementById('gameIdDisplay').style.display = 'block';
     }
 
     setupConnection() {
-        // Local multiplayer doesn't need network connection setup
-        this.isConnected = true;
+        // WebRTC connection setup is handled in hostGame() and joinGame()
+        this.isConnected = !!this.dataChannel && this.dataChannel.readyState === 'open';
     }
 
     handleRemoteData(data) {
-        // For local multiplayer, this method is not used
-        // but kept for future P2P implementation
+        if (!data) return;
+        
+        switch (data.type) {
+            case 'playerMove':
+                // Update remote player position
+                this.remotePlayerY = data.playerY;
+                break;
+                
+            case 'gameState':
+                // Sync game state
+                if (data.isPlaying !== undefined) {
+                    this.isPlaying = data.isPlaying;
+                    this.isPaused = data.isPaused;
+                    
+                    // Update UI
+                    document.getElementById('startButton').disabled = data.isPlaying;
+                    document.getElementById('pauseButton').disabled = !data.isPlaying;
+                }
+                break;
+                
+            case 'ballPosition':
+                // Sync ball position (host controls ball physics)
+                if (!this.isHost) {
+                    this.ballX = data.x;
+                    this.ballY = data.y;
+                    this.ballSpeedX = data.speedX;
+                    this.ballSpeedY = data.speedY;
+                }
+                break;
+                
+            case 'score':
+                // Sync score
+                this.playerScore = data.player;
+                this.computerScore = data.computer;
+                document.getElementById('playerScore').textContent = this.playerScore;
+                document.getElementById('computerScore').textContent = this.computerScore;
+                break;
+        }
     }
 
     sendData(data) {
-        // For local multiplayer, data is shared directly
-        // but kept for future P2P implementation
+        if (this.dataChannel && this.dataChannel.readyState === 'open') {
+            try {
+                // Add current player position for movement updates
+                if (data.type === 'playerMove') {
+                    data.playerY = this.playerY;
+                }
+                
+                this.dataChannel.send(JSON.stringify(data));
+            } catch (error) {
+                console.error('Fehler beim Senden der Daten:', error);
+            }
+        }
     }
 
     copyGameId() {
@@ -455,16 +731,17 @@ class Pong {
     }
 
     disconnectPeer() {
-        if (this.connection) {
-            this.connection.close();
-            this.connection = null;
+        if (this.dataChannel) {
+            this.dataChannel.close();
+            this.dataChannel = null;
         }
-        if (this.peer) {
-            this.peer.destroy();
-            this.peer = null;
+        if (this.peerConnection) {
+            this.peerConnection.close();
+            this.peerConnection = null;
         }
         this.isConnected = false;
         this.isHost = false;
+        this.gameId = null;
         document.getElementById('gameIdDisplay').style.display = 'none';
         this.updateConnectionStatus('');
     }
@@ -482,13 +759,13 @@ class Pong {
         this.remotePlayerY = (this.canvas.height - this.paddleHeight) / 2;
         
         // Update UI
-        document.getElementById('startButton').disabled = (this.gameMode === 'multiplayer' && !this.isConnected);
+        document.getElementById('startButton').disabled = (this.gameMode === 'online-multiplayer' && !this.isConnected);
         document.getElementById('pauseButton').disabled = true;
         document.getElementById('playerScore').textContent = this.playerScore;
         document.getElementById('computerScore').textContent = this.computerScore;
         
-        // Send reset state to remote player in multiplayer mode
-        if (this.gameMode === 'multiplayer' && this.isConnected) {
+        // Send reset state to remote player in online multiplayer mode
+        if (this.gameMode === 'online-multiplayer' && this.isConnected) {
             this.sendData({ type: 'gameState', isPlaying: false, isPaused: false });
             this.sendData({ type: 'score', player: 0, computer: 0 });
         }

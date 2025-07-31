@@ -23,15 +23,21 @@
             <label for="gameMode">Spielmodus:</label>
             <select id="gameMode">
                 <option value="singleplayer">Einzelspieler</option>
-                <option value="multiplayer">Mehrspieler (P2P)</option>
+                <option value="local-multiplayer">Lokaler Mehrspieler</option>
+                <option value="online-multiplayer">Online Mehrspieler (P2P)</option>
             </select>
+        </div>
+        <div class="local-multiplayer-controls" id="localMultiplayerControls" style="display: none;">
+            <div class="connection-status" id="localConnectionStatus">
+                Lokaler Mehrspieler: Spieler 1 (Pfeiltasten ↑/↓), Spieler 2 (W/S-Tasten)
+            </div>
         </div>
         <div class="multiplayer-controls" id="multiplayerControls" style="display: none;">
             <div class="multiplayer-section">
-                <button id="hostButton">Spiel erstellen</button>
+                <button id="hostButton">Online-Spiel erstellen</button>
                 <div class="join-section">
                     <input type="text" id="gameIdInput" placeholder="Spiel-ID eingeben">
-                    <button id="joinButton">Spiel beitreten</button>
+                    <button id="joinButton">Online-Spiel beitreten</button>
                 </div>
             </div>
             <div class="connection-status" id="connectionStatus"></div>
@@ -56,7 +62,8 @@
         </div>
         <div class="instructions">
             <p>Einzelspieler: ↑/↓ Pfeiltasten oder Mobile-Buttons</p>
-            <p>Mehrspieler: Spieler 1 (↑/↓), Spieler 2 (W/S)</p>
+            <p>Lokaler Mehrspieler: Spieler 1 (↑/↓), Spieler 2 (W/S)</p>
+            <p>Online Mehrspieler: Jeder Spieler steuert seinen Paddle</p>
             <p>Pause: Leertaste</p>
         </div>
     </div>
