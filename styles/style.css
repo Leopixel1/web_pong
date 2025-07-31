@@ -123,6 +123,75 @@ button:disabled {
     transition: color 0.3s ease;
 }
 
+.game-mode {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-color);
+    transition: color 0.3s ease;
+}
+
+.multiplayer-controls {
+    margin-top: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+    color: var(--text-color);
+    transition: color 0.3s ease;
+}
+
+.multiplayer-section {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.join-section {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.connection-status {
+    font-size: 14px;
+    padding: 5px 10px;
+    border-radius: 3px;
+    background-color: var(--select-bg);
+    border: 1px solid var(--select-border);
+    min-height: 20px;
+}
+
+.game-id {
+    font-size: 14px;
+    padding: 10px;
+    background-color: var(--select-bg);
+    border: 1px solid var(--select-border);
+    border-radius: 5px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+input[type="text"] {
+    background-color: var(--select-bg);
+    color: var(--select-text);
+    border: 1px solid var(--select-border);
+    padding: 8px 12px;
+    border-radius: 3px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+input[type="text"]:focus {
+    outline: none;
+    border-color: var(--game-element-color);
+}
+
 .settings label {
     font-size: 14px;
 }

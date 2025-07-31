@@ -5,18 +5,23 @@ Ein modernes, responsives Pong-Spiel, das sowohl auf Desktop als auch auf mobile
 ## Features
 
 - Klassisches Pong-Gameplay
+- **Neu: Lokaler Mehrspieler-Modus** - Zwei Spieler am selben Gerät
 - Responsive Design für Desktop und Mobile
 - Touch-Steuerung für mobile Geräte
-- Keyboard-Steuerung (Pfeiltasten) für Desktop
-- Automatischer Computer-Gegner
+- Keyboard-Steuerung für Desktop
+- Automatischer Computer-Gegner im Einzelspieler-Modus
 - Punktestand-Anzeige
 - Zunehmende Spielgeschwindigkeit
 
 ## Steuerung
 
-### Desktop
+### Einzelspieler
 - Pfeiltaste nach oben: Schläger nach oben bewegen
 - Pfeiltaste nach unten: Schläger nach unten bewegen
+
+### Mehrspieler (Lokal)
+- **Spieler 1 (linker Schläger)**: Pfeiltasten ↑/↓
+- **Spieler 2 (rechter Schläger)**: W/S Tasten
 
 ### Mobile
 - Buttons auf dem Bildschirm zum Hoch- und Runterbewegen
